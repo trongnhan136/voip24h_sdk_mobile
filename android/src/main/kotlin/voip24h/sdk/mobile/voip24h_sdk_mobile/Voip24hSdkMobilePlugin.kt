@@ -100,6 +100,9 @@ class Voip24hSdkMobilePlugin : FlutterPlugin, MethodCallHandler, EventChannel.St
       "getCallId" -> {
         sipManager.getCallId(result)
       }
+      "getCurrentCallStatus" -> {
+        sipManager.getCurrentCallStatus(result)
+      }
       "getMissedCalls" -> {
         sipManager.getMissedCalls(result)
       }

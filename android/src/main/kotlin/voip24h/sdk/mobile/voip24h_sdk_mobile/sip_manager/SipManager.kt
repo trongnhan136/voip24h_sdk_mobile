@@ -436,6 +436,15 @@ internal class SipManager private constructor(context: Context) {
         }
     }
 
+    fun getCurrentCallStatus(result: Result) {
+        mCore.currentCall?.state?.let {
+            result.success(it.toInt())
+        } ?: kotlin.run {
+            result.success(-999)
+        }
+    }
+
+
     fun getMissedCalls(result: Result) {
         result.success(mCore.missedCallsCount)
     }

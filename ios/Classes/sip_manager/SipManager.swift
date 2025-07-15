@@ -502,6 +502,15 @@ class SipManager {
         }
     }
     
+    func getCurrentCallStatus(result: FlutterResult){
+        let state = mCore.currentCall?.state.rawValue
+        if(state != nil){
+            result(state)
+        }else{
+            result(-999)
+        }
+    }
+    
     func getMissCalls(result: FlutterResult) {
         result(mCore.missedCallsCount)
     }

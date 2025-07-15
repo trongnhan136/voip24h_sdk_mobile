@@ -12,14 +12,17 @@ class CallModule {
 
   static CallModule get instance => _instance;
 
-  static const MethodChannel _methodChannel = MethodChannel('flutter_voip24h_sdk_mobile_method_channel');
+  static const MethodChannel _methodChannel =
+      MethodChannel('flutter_voip24h_sdk_mobile_method_channel');
 
-  static const EventChannel _eventChannel = EventChannel('flutter_voip24h_sdk_mobile_event_channel');
+  static const EventChannel _eventChannel =
+      EventChannel('flutter_voip24h_sdk_mobile_event_channel');
 
   static Stream broadcastStream = _eventChannel.receiveBroadcastStream();
 
   // Flutter
-  final StreamController<dynamic> _eventStreamController = StreamController.broadcast();
+  final StreamController<dynamic> _eventStreamController =
+      StreamController.broadcast();
 
   StreamController<dynamic> get eventStreamController => _eventStreamController;
 
@@ -27,7 +30,8 @@ class CallModule {
     if (!_eventStreamController.hasListener) {
       broadcastStream.listen(_listener);
     }
-    await _methodChannel.invokeMethod('initSipModule', {"sipConfiguration": sipConfiguration.toJson()});
+    await _methodChannel.invokeMethod(
+        'initSipModule', {"sipConfiguration": sipConfiguration.toJson()});
   }
 
   void _listener(dynamic event) {
@@ -62,8 +66,32 @@ class CallModule {
     // }
   }
 
+  Future<CallEvent> getCurrentCallStatus() async {
+    final value = await _methodChannel.invokeMethod('getCurrentCallStatus');
+    switch (value) {
+      case 1:
+      case 4:
+        return CallEvent.Ring;
+      case 8:
+        return CallEvent.Up;
+      case 10:
+        return CallEvent.Paused;
+      case 11:
+        return CallEvent.Resuming;
+      case 13:
+        return CallEvent.Error;
+      case 14:
+        return CallEvent.Hangup;
+      case 19:
+        return CallEvent.Missed;
+    }
+
+    return CallEvent.Unknown;
+  }
+
   Future<bool> call(String phoneNumber) async {
-    return await _methodChannel.invokeMethod('call', {"recipient": phoneNumber});
+    return await _methodChannel
+        .invokeMethod('call', {"recipient": phoneNumber});
   }
 
   Future<bool> hangup() async {
@@ -79,7 +107,8 @@ class CallModule {
   }
 
   Future<bool> transfer(String extension) async {
-    return await _methodChannel.invokeMethod('transfer', {"extension": extension});
+    return await _methodChannel
+        .invokeMethod('transfer', {"extension": extension});
   }
 
   Future<bool> pause() async {
@@ -131,7 +160,8 @@ class CallModule {
   }
 
   Future<bool> setCodecs(Codecs codec, bool isEnable) async {
-    return await _methodChannel.invokeMethod('setCodecs', {"codecs": codec.value, "isEnable": isEnable});
+    return await _methodChannel.invokeMethod(
+        'setCodecs', {"codecs": codec.value, "isEnable": isEnable});
   }
 
 // Future<void> registerPush() async {

@@ -88,6 +88,9 @@ public class SwiftVoip24hSdkMobilePlugin: NSObject, FlutterPlugin, FlutterStream
         case "getCallId":
             sipManager.getCallId(result: result)
             break
+        case "getCurrentCallStatus":
+            sipManager.getCurrentCallStatus(result: result)
+            break
         case "getMissedCalls":
             sipManager.getMissCalls(result: result)
             break
