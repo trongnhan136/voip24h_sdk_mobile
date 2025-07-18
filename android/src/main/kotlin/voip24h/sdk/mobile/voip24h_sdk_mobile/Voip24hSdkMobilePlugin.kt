@@ -13,6 +13,10 @@ import org.json.JSONObject
 import voip24h.sdk.mobile.voip24h_sdk_mobile.model.SipConfiguration
 import voip24h.sdk.mobile.voip24h_sdk_mobile.sip_manager.SipManager
 
+ interface IOnRinging{
+  fun onRinging(extension:String, phone:String)
+}
+
 /** FlutterVoip24hSdkMobilePlugin */
 class Voip24hSdkMobilePlugin : FlutterPlugin, MethodCallHandler, EventChannel.StreamHandler {
   /// The MethodChannel that will the communication between Flutter and native Android
@@ -25,6 +29,7 @@ class Voip24hSdkMobilePlugin : FlutterPlugin, MethodCallHandler, EventChannel.St
 
   companion object {
     var eventSink: EventChannel.EventSink? = null
+    var iRinging: IOnRinging? = null
   }
 
   override fun onAttachedToEngine(@NonNull flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {

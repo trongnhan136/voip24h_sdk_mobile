@@ -45,6 +45,7 @@ internal class SipManager private constructor(context: Context) {
                     val extension = core.defaultAccount?.contactAddress?.username ?: ""
                     val phoneNumber = call.remoteAddress.username ?: ""
                     sendEvent(EventRing, "extension" to extension, "phoneNumber" to phoneNumber, "callType" to CallType.inbound.value)
+                    Voip24hSdkMobilePlugin.iRinging?.onRinging(extension,phoneNumber)
                 }
                 Call.State.OutgoingInit -> {
                     // First state an outgoing call will go through
