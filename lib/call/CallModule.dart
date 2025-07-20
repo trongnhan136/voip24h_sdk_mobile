@@ -12,11 +12,13 @@ class CallModule {
 
   static CallModule get instance => _instance;
 
-  static const MethodChannel _methodChannel =
-      MethodChannel('flutter_voip24h_sdk_mobile_method_channel');
+  static const MethodChannel _methodChannel = MethodChannel(
+    'flutter_voip24h_sdk_mobile_method_channel',
+  );
 
-  static const EventChannel _eventChannel =
-      EventChannel('flutter_voip24h_sdk_mobile_event_channel');
+  static const EventChannel _eventChannel = EventChannel(
+    'flutter_voip24h_sdk_mobile_event_channel',
+  );
 
   static Stream broadcastStream = _eventChannel.receiveBroadcastStream();
 
@@ -30,8 +32,9 @@ class CallModule {
     if (!_eventStreamController.hasListener) {
       broadcastStream.listen(_listener);
     }
-    await _methodChannel.invokeMethod(
-        'initSipModule', {"sipConfiguration": sipConfiguration.toJson()});
+    await _methodChannel.invokeMethod('initSipModule', {
+      "sipConfiguration": sipConfiguration.toJson(),
+    });
   }
 
   void _listener(dynamic event) {
@@ -84,14 +87,17 @@ class CallModule {
         return CallEvent.Hangup;
       case 19:
         return CallEvent.Missed;
+      case -999:
+        return CallEvent.NoCall;
     }
 
     return CallEvent.Unknown;
   }
 
   Future<bool> call(String phoneNumber) async {
-    return await _methodChannel
-        .invokeMethod('call', {"recipient": phoneNumber});
+    return await _methodChannel.invokeMethod('call', {
+      "recipient": phoneNumber,
+    });
   }
 
   Future<bool> hangup() async {
@@ -107,8 +113,9 @@ class CallModule {
   }
 
   Future<bool> transfer(String extension) async {
-    return await _methodChannel
-        .invokeMethod('transfer', {"extension": extension});
+    return await _methodChannel.invokeMethod('transfer', {
+      "extension": extension,
+    });
   }
 
   Future<bool> pause() async {
@@ -160,11 +167,13 @@ class CallModule {
   }
 
   Future<bool> setCodecs(Codecs codec, bool isEnable) async {
-    return await _methodChannel.invokeMethod(
-        'setCodecs', {"codecs": codec.value, "isEnable": isEnable});
+    return await _methodChannel.invokeMethod('setCodecs', {
+      "codecs": codec.value,
+      "isEnable": isEnable,
+    });
   }
 
-// Future<void> registerPush() async {
-//   return await _methodChannel.invokeMethod('registerPush');
-// }
+  // Future<void> registerPush() async {
+  //   return await _methodChannel.invokeMethod('registerPush');
+  // }
 }

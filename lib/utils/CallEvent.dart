@@ -7,6 +7,7 @@ enum CallEvent {
   Missed,
   Hangup,
   Unknown,
+  NoCall,
   Error;
   // Released
 
