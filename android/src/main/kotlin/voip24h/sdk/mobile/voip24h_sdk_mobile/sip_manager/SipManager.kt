@@ -27,6 +27,7 @@ internal class SipManager private constructor(context: Context) {
 
         override fun onAudioDevicesListUpdated(core: Core) {
             super.onAudioDevicesListUpdated(core)
+            selectDefaultAudioInput()
             selectDefaultAudioOutput()
         }
 
@@ -49,6 +50,7 @@ internal class SipManager private constructor(context: Context) {
                     Log.d(TAG, "IncomingReceived")
                     val extension = core.defaultAccount?.contactAddress?.username ?: ""
                     val phoneNumber = call.remoteAddress.username ?: ""
+                    selectDefaultAudioInput()
                     selectDefaultAudioOutput()
                     sendEvent(EventRing, "extension" to extension, "phoneNumber" to phoneNumber, "callType" to CallType.inbound.value)
                     Voip24hSdkMobilePlugin.iRinging?.onRinging(extension,phoneNumber)
@@ -62,6 +64,7 @@ internal class SipManager private constructor(context: Context) {
                     Log.d(TAG, "OutgoingProgress")
                     val extension = core.defaultAccount?.contactAddress?.username ?: ""
                     val phoneNumber = call.remoteAddress.username ?: ""
+                    selectDefaultAudioInput()
                     selectDefaultAudioOutput()
                     sendEvent(EventRing, "extension" to extension, "phoneNumber" to phoneNumber, "callType" to CallType.outbound.value)
                 }
@@ -377,22 +380,33 @@ internal class SipManager private constructor(context: Context) {
         }
     }
 
-    fun selectDefaultAudioOutput(){
+    fun selectDefaultAudioInput(){
         val coreCall = mCore.currentCall ?: return
 
-//        val currentAudioInputDevice = coreCall.inputAudioDevice
-//        val bluetoothAudioDeviceMic = mCore.audioDevices.firstOrNull {
-//            (it.type == AudioDevice.Type.Bluetooth || it.type == AudioDevice.Type.BluetoothA2DP) &&
-//                    it.hasCapability(AudioDevice.Capabilities.CapabilityRecord)
-//        }
-//        Log.v("DKM ==>>", " " + currentAudioInputDevice?.type + "  " + bluetoothAudioDeviceMic?.type)
+        val currentAudioInputDevice = coreCall.inputAudioDevice
 
+        val isBluetooth = currentAudioInputDevice?.type == AudioDevice.Type.Bluetooth
+        if(isBluetooth){
+            return
+        }
+
+        val bluetoothAudioDeviceMic = mCore.audioDevices.firstOrNull {
+            (it.type == AudioDevice.Type.Bluetooth || it.type == AudioDevice.Type.BluetoothA2DP) &&
+                    it.hasCapability(AudioDevice.Capabilities.CapabilityRecord)
+        }
+        if (bluetoothAudioDeviceMic != null){
+            coreCall.inputAudioDevice = bluetoothAudioDeviceMic
+            return
+        }
+    }
+
+    fun selectDefaultAudioOutput(){
+        val coreCall = mCore.currentCall ?: return
 //        for (audioDevice in mCore.audioDevices) {
 //            Log.v("DKM ==>>", "audioDevice " + audioDevice?.type)
 //        }
 
         val currentAudioDevice = coreCall.outputAudioDevice
-
         val speakerEnabled = currentAudioDevice?.type == AudioDevice.Type.Speaker
         if(speakerEnabled){
             return
@@ -403,14 +417,6 @@ internal class SipManager private constructor(context: Context) {
         }
         if (bluetoothAudioDevicePlay != null){
             coreCall.outputAudioDevice = bluetoothAudioDevicePlay
-            return
-        }
-
-        val earAudioDevice = mCore.audioDevices.firstOrNull {
-            (it.type == AudioDevice.Type.Earpiece)
-        }
-        if(earAudioDevice != null){
-            coreCall.outputAudioDevice = earAudioDevice
             return
         }
     }
