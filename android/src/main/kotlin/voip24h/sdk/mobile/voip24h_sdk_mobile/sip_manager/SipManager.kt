@@ -44,6 +44,7 @@ internal class SipManager private constructor(context: Context) {
                     Log.d(TAG, "IncomingReceived")
                     val extension = core.defaultAccount?.contactAddress?.username ?: ""
                     val phoneNumber = call.remoteAddress.username ?: ""
+                    selectDefaultAudioOutput()
                     sendEvent(EventRing, "extension" to extension, "phoneNumber" to phoneNumber, "callType" to CallType.inbound.value)
                     Voip24hSdkMobilePlugin.iRinging?.onRinging(extension,phoneNumber)
                 }
@@ -56,6 +57,7 @@ internal class SipManager private constructor(context: Context) {
                     Log.d(TAG, "OutgoingProgress")
                     val extension = core.defaultAccount?.contactAddress?.username ?: ""
                     val phoneNumber = call.remoteAddress.username ?: ""
+                    selectDefaultAudioOutput()
                     sendEvent(EventRing, "extension" to extension, "phoneNumber" to phoneNumber, "callType" to CallType.outbound.value)
                 }
                 Call.State.OutgoingRinging -> {
@@ -370,12 +372,52 @@ internal class SipManager private constructor(context: Context) {
         }
     }
 
+    fun selectDefaultAudioOutput(){
+        val coreCall = mCore.currentCall ?: return
+
+//        val currentAudioInputDevice = coreCall.inputAudioDevice
+//        val bluetoothAudioDeviceMic = mCore.audioDevices.firstOrNull {
+//            (it.type == AudioDevice.Type.Bluetooth || it.type == AudioDevice.Type.BluetoothA2DP) &&
+//                    it.hasCapability(AudioDevice.Capabilities.CapabilityRecord)
+//        }
+//        Log.v("DKM ==>>", " " + currentAudioInputDevice?.type + "  " + bluetoothAudioDeviceMic?.type)
+
+        val currentAudioDevice = coreCall.outputAudioDevice
+
+        val speakerEnabled = currentAudioDevice?.type == AudioDevice.Type.Speaker
+        if(speakerEnabled){
+            return
+        }
+        val bluetoothAudioDevicePlay = mCore.audioDevices.firstOrNull {
+            (it.type == AudioDevice.Type.Bluetooth || it.type == AudioDevice.Type.BluetoothA2DP) &&
+                    it.hasCapability(AudioDevice.Capabilities.CapabilityPlay)
+        }
+        if (bluetoothAudioDevicePlay != null){
+            coreCall.outputAudioDevice = bluetoothAudioDevicePlay
+            return
+        }
+
+        val earAudioDevice = mCore.audioDevices.firstOrNull {
+            (it.type == AudioDevice.Type.Earpiece)
+        }
+        if(earAudioDevice != null){
+            coreCall.outputAudioDevice = earAudioDevice
+            return
+        }
+    }
+
     fun toggleSpeaker(result: Result) {
         val coreCall = mCore.currentCall ?: return result.error("404", "Current call not found", null)
         val currentAudioDevice = coreCall.outputAudioDevice
         val speakerEnabled = currentAudioDevice?.type == AudioDevice.Type.Speaker
+
+        val hasBluetooth = mCore.audioDevices.any { (it.type == AudioDevice.Type.Bluetooth || it.type == AudioDevice.Type.BluetoothA2DP) && it.hasCapability(AudioDevice.Capabilities.CapabilityPlay) }
+
         for (audioDevice in mCore.audioDevices) {
-            if (speakerEnabled && audioDevice.type == AudioDevice.Type.Earpiece) {
+            if (speakerEnabled && hasBluetooth && (audioDevice.type == AudioDevice.Type.Bluetooth || audioDevice.type == AudioDevice.Type.BluetoothA2DP) && audioDevice.hasCapability(AudioDevice.Capabilities.CapabilityPlay)) {
+                coreCall.outputAudioDevice = audioDevice
+                return result.success(false)
+            }else if (speakerEnabled && !hasBluetooth && audioDevice.type == AudioDevice.Type.Earpiece) {
                 coreCall.outputAudioDevice = audioDevice
                 return result.success(false)
             } else if (!speakerEnabled && audioDevice.type == AudioDevice.Type.Speaker) {
