@@ -45,6 +45,8 @@ internal class SipManager private constructor(context: Context) {
             state: Call.State?,
             message: String
         ) {
+
+
             when (state) {
                 Call.State.IncomingReceived -> {
                     Log.d(TAG, "IncomingReceived")
@@ -391,7 +393,7 @@ internal class SipManager private constructor(context: Context) {
         }
 
         val bluetoothAudioDeviceMic = mCore.audioDevices.firstOrNull {
-            (it.type == AudioDevice.Type.Bluetooth || it.type == AudioDevice.Type.BluetoothA2DP) &&
+            (it.type == AudioDevice.Type.Bluetooth) &&
                     it.hasCapability(AudioDevice.Capabilities.CapabilityRecord)
         }
         if (bluetoothAudioDeviceMic != null){
@@ -412,7 +414,7 @@ internal class SipManager private constructor(context: Context) {
             return
         }
         val bluetoothAudioDevicePlay = mCore.audioDevices.firstOrNull {
-            (it.type == AudioDevice.Type.Bluetooth || it.type == AudioDevice.Type.BluetoothA2DP) &&
+            (it.type == AudioDevice.Type.Bluetooth) &&
                     it.hasCapability(AudioDevice.Capabilities.CapabilityPlay)
         }
         if (bluetoothAudioDevicePlay != null){
@@ -426,10 +428,10 @@ internal class SipManager private constructor(context: Context) {
         val currentAudioDevice = coreCall.outputAudioDevice
         val speakerEnabled = currentAudioDevice?.type == AudioDevice.Type.Speaker
 
-        val hasBluetooth = mCore.audioDevices.any { (it.type == AudioDevice.Type.Bluetooth || it.type == AudioDevice.Type.BluetoothA2DP) && it.hasCapability(AudioDevice.Capabilities.CapabilityPlay) }
+        val hasBluetooth = mCore.audioDevices.any { (it.type == AudioDevice.Type.Bluetooth) && it.hasCapability(AudioDevice.Capabilities.CapabilityPlay) }
 
         for (audioDevice in mCore.audioDevices) {
-            if (speakerEnabled && hasBluetooth && (audioDevice.type == AudioDevice.Type.Bluetooth || audioDevice.type == AudioDevice.Type.BluetoothA2DP) && audioDevice.hasCapability(AudioDevice.Capabilities.CapabilityPlay)) {
+            if (speakerEnabled && hasBluetooth && (audioDevice.type == AudioDevice.Type.Bluetooth) && audioDevice.hasCapability(AudioDevice.Capabilities.CapabilityPlay)) {
                 coreCall.outputAudioDevice = audioDevice
                 return result.success(false)
             }else if (speakerEnabled && !hasBluetooth && audioDevice.type == AudioDevice.Type.Earpiece) {
