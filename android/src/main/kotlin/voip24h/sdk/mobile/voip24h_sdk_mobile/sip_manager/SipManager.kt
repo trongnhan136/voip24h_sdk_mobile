@@ -25,6 +25,11 @@ internal class SipManager private constructor(context: Context) {
             sendEvent(EventAccountRegistrationStateChanged, "registrationState" to (state?.name ?: ""), "message" to message)
         }
 
+        override fun onAudioDevicesListUpdated(core: Core) {
+            super.onAudioDevicesListUpdated(core)
+            selectDefaultAudioOutput()
+        }
+
         // override fun onAudioDeviceChanged(core: Core, audioDevice: AudioDevice) {
             // val currentAudioDeviceType = core.currentCall?.outputAudioDevice?.type
             // if(currentAudioDeviceType != AudioDevice.Type.Speaker && currentAudioDeviceType != AudioDevice.Type.Earpiece) {
@@ -381,6 +386,10 @@ internal class SipManager private constructor(context: Context) {
 //                    it.hasCapability(AudioDevice.Capabilities.CapabilityRecord)
 //        }
 //        Log.v("DKM ==>>", " " + currentAudioInputDevice?.type + "  " + bluetoothAudioDeviceMic?.type)
+
+//        for (audioDevice in mCore.audioDevices) {
+//            Log.v("DKM ==>>", "audioDevice " + audioDevice?.type)
+//        }
 
         val currentAudioDevice = coreCall.outputAudioDevice
 
