@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.media.AudioManager
+import android.media.RingtoneManager
 import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
@@ -51,6 +52,7 @@ internal class SipManager private constructor(context: Context) {
             // sendEvent("AudioDevicesChanged", createParams("audioOutputType" to currentAudioDeviceType.name))
         // }
 
+        @SuppressLint("MissingPermission")
         override fun onCallStateChanged(
             core: Core,
             call: Call,
@@ -174,7 +176,9 @@ internal class SipManager private constructor(context: Context) {
             mCore.isKeepAliveEnabled = sipConfiguration.isKeepAlive
             mCore.maxCalls = 1
             mCore.start()
+
             mCore.isVibrationOnIncomingCallEnabled = false
+
             mCore.removeListener(coreListener)
             mCore.addListener(coreListener)
             isInitial = true
