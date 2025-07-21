@@ -1,20 +1,8 @@
 package voip24h.sdk.mobile.voip24h_sdk_mobile.sip_manager
 
-import android.Manifest
 import android.annotation.SuppressLint
-import android.content.BroadcastReceiver
 import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
-import android.media.AudioManager
-import android.media.RingtoneManager
-import android.os.Build
-import android.os.VibrationEffect
-import android.os.Vibrator
-import android.os.VibratorManager
-import android.provider.Settings
 import android.util.Log
-import androidx.annotation.RequiresPermission
 import voip24h.sdk.mobile.voip24h_sdk_mobile.Voip24hSdkMobilePlugin
 import org.linphone.core.*
 import voip24h.sdk.mobile.voip24h_sdk_mobile.model.SipConfiguration
@@ -60,7 +48,6 @@ internal class SipManager private constructor(context: Context) {
             message: String
         ) {
 
-
             when (state) {
                 Call.State.IncomingReceived -> {
                     Log.d(TAG, "IncomingReceived")
@@ -69,7 +56,6 @@ internal class SipManager private constructor(context: Context) {
                     selectDefaultAudioInput()
                     selectDefaultAudioOutput()
                     sendEvent(EventRing, "extension" to extension, "phoneNumber" to phoneNumber, "callType" to CallType.inbound.value)
-                    startVibrate(context)
                     Voip24hSdkMobilePlugin.iRinging?.onRinging(extension,phoneNumber)
                 }
                 Call.State.OutgoingInit -> {
@@ -93,8 +79,6 @@ internal class SipManager private constructor(context: Context) {
                     Log.d(TAG, "Connected")
                 }
                 Call.State.StreamsRunning -> {
-                    stopVibration(context)
-                    unregisterRingerModeReceiver(context)
                     // This state indicates the call is active.
                     // You may reach this state multiple times, for example after a pause/resume
                     // or after the ICE negotiation completes
@@ -127,8 +111,6 @@ internal class SipManager private constructor(context: Context) {
                     Log.d(TAG, "UpdatedByRemote")
                 }
                 Call.State.Released -> {
-                    stopVibration(context)
-                    unregisterRingerModeReceiver(context)
                     if(isMissed(call.callLog)) {
                         Log.d(TAG,"Missed")
                         val callee = call.remoteAddress.username ?: ""
@@ -141,16 +123,12 @@ internal class SipManager private constructor(context: Context) {
                     }
                 }
                 Call.State.End -> {
-                    stopVibration(context)
-                    unregisterRingerModeReceiver(context)
                     Log.d(TAG, "End")
                     val duration = if(timeStartStreamingRunning == 0L) 0 else System.currentTimeMillis() - timeStartStreamingRunning
                     sendEvent(EventHangup, "duration" to duration)
                     timeStartStreamingRunning = 0
                 }
                 Call.State.Error -> {
-                    stopVibration(context)
-                    unregisterRingerModeReceiver(context)
                     Log.d(TAG, "Error")
                     sendEvent(EventError, "message" to message)
                 }
@@ -576,84 +554,6 @@ internal class SipManager private constructor(context: Context) {
 
     private fun createParams(event: String, vararg params: Pair<String, Any>): Map<String, Any> {
         return mapOf("event" to event, "body" to params.toMap())
-    }
-
-
-    private var isRingerReceiverRegistered = false
-    private var ringerModeReceiver: RingerModeReceiver? = null
-    @RequiresPermission(Manifest.permission.VIBRATE)
-    private fun startVibrate(context: Context) {
-        val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-        registerRingerModeReceiver(context)
-        val ringerMode = audioManager.ringerMode
-        Log.e("DKM", "startVibrate - ringerMode: $ringerMode")
-        if (ringerMode == AudioManager.RINGER_MODE_SILENT) {
-            return
-        }
-        val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            val vibratorManager =
-                context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
-            vibratorManager.defaultVibrator
-        } else {
-            context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
-        }
-        val vibrationEffect = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            VibrationEffect.createWaveform(
-                longArrayOf(0, 1000, 1000),  // pattern
-                0 // repeat indefinitely
-            )
-        } else {
-            null
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            vibrator.vibrate(vibrationEffect)
-        } else {
-            vibrator.vibrate(longArrayOf(0, 1000, 1000), 0)
-        }
-    }
-    @SuppressLint("MissingPermission")
-    private fun stopVibration(context: Context) {
-        val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            val vibratorManager =
-                context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
-            vibratorManager.defaultVibrator
-        } else {
-            context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
-        }
-        vibrator.cancel()
-    }
-    @SuppressLint("MissingPermission")
-    private fun registerRingerModeReceiver(context: Context) {
-        if (isRingerReceiverRegistered) return
-        val filter = IntentFilter(AudioManager.RINGER_MODE_CHANGED_ACTION)
-        ringerModeReceiver = RingerModeReceiver { newMode ->
-            Log.e("DKM", "registerRingerModeReceiver: $newMode")
-            when (newMode) {
-                AudioManager.RINGER_MODE_NORMAL,
-                AudioManager.RINGER_MODE_VIBRATE -> startVibrate(context)
-                AudioManager.RINGER_MODE_SILENT -> stopVibration(context)
-            }
-        }
-        context.registerReceiver(ringerModeReceiver, filter)
-        isRingerReceiverRegistered = true
-    }
-    private fun unregisterRingerModeReceiver(context: Context) {
-        if (!isRingerReceiverRegistered) return
-        try {
-            context.unregisterReceiver(ringerModeReceiver)
-        } catch (_: IllegalArgumentException) {
-        }
-        ringerModeReceiver = null
-        isRingerReceiverRegistered = false
-    }
-    class RingerModeReceiver(private val onRingerModeChanged: (Int) -> Unit) : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) {
-            if (intent.action == AudioManager.RINGER_MODE_CHANGED_ACTION) {
-                val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-                val newMode = audioManager.ringerMode
-                onRingerModeChanged(newMode)
-            }
-        }
     }
 
     companion object {
