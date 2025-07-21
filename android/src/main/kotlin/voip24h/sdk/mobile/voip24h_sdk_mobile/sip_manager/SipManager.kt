@@ -408,21 +408,21 @@ internal class SipManager private constructor(context: Context) {
     fun selectDefaultAudioInput(){
         val coreCall = mCore.currentCall ?: return
 
-//        val currentAudioInputDevice = coreCall.inputAudioDevice
-//
-//        val isBluetooth = currentAudioInputDevice?.type == AudioDevice.Type.Bluetooth
-//        if(isBluetooth){
-//            return
-//        }
-//
-//        val bluetoothAudioDeviceMic = mCore.audioDevices.firstOrNull {
-//            (it.type == AudioDevice.Type.Bluetooth) &&
-//                    it.hasCapability(AudioDevice.Capabilities.CapabilityRecord)
-//        }
-//        if (bluetoothAudioDeviceMic != null){
-//            coreCall.inputAudioDevice = bluetoothAudioDeviceMic
-//            return
-//        }
+        val currentAudioInputDevice = coreCall.inputAudioDevice
+
+        val isBluetooth = currentAudioInputDevice?.type == AudioDevice.Type.Bluetooth
+        if(isBluetooth){
+            return
+        }
+
+        val bluetoothAudioDeviceMic = mCore.audioDevices.firstOrNull {
+            (it.type == AudioDevice.Type.Bluetooth) &&
+                    it.hasCapability(AudioDevice.Capabilities.CapabilityRecord)
+        }
+        if (bluetoothAudioDeviceMic != null){
+            coreCall.inputAudioDevice = bluetoothAudioDeviceMic
+            return
+        }
     }
 
     fun selectDefaultAudioOutput(){
@@ -431,19 +431,19 @@ internal class SipManager private constructor(context: Context) {
 //            Log.v("DKM ==>>", "audioDevice " + audioDevice?.type)
 //        }
 
-//        val currentAudioDevice = coreCall.outputAudioDevice
-//        val speakerEnabled = currentAudioDevice?.type == AudioDevice.Type.Speaker
-//        if(speakerEnabled){
-//            return
-//        }
-//        val bluetoothAudioDevicePlay = mCore.audioDevices.firstOrNull {
-//            (it.type == AudioDevice.Type.Bluetooth) &&
-//                    it.hasCapability(AudioDevice.Capabilities.CapabilityPlay)
-//        }
-//        if (bluetoothAudioDevicePlay != null){
-//            coreCall.outputAudioDevice = bluetoothAudioDevicePlay
-//            return
-//        }
+        val currentAudioDevice = coreCall.outputAudioDevice
+        val speakerEnabled = currentAudioDevice?.type == AudioDevice.Type.Speaker
+        if(speakerEnabled){
+            return
+        }
+        val bluetoothAudioDevicePlay = mCore.audioDevices.firstOrNull {
+            (it.type == AudioDevice.Type.Bluetooth) &&
+                    it.hasCapability(AudioDevice.Capabilities.CapabilityPlay)
+        }
+        if (bluetoothAudioDevicePlay != null){
+            coreCall.outputAudioDevice = bluetoothAudioDevicePlay
+            return
+        }
     }
 
     fun toggleSpeaker(result: Result) {
