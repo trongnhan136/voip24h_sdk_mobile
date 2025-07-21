@@ -1,7 +1,19 @@
 package voip24h.sdk.mobile.voip24h_sdk_mobile.sip_manager
 
+import android.Manifest
+import android.annotation.SuppressLint
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.media.AudioManager
+import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
+import android.provider.Settings
 import android.util.Log
+import androidx.annotation.RequiresPermission
 import voip24h.sdk.mobile.voip24h_sdk_mobile.Voip24hSdkMobilePlugin
 import org.linphone.core.*
 import voip24h.sdk.mobile.voip24h_sdk_mobile.model.SipConfiguration
@@ -55,6 +67,7 @@ internal class SipManager private constructor(context: Context) {
                     selectDefaultAudioInput()
                     selectDefaultAudioOutput()
                     sendEvent(EventRing, "extension" to extension, "phoneNumber" to phoneNumber, "callType" to CallType.inbound.value)
+                    startVibrate(context)
                     Voip24hSdkMobilePlugin.iRinging?.onRinging(extension,phoneNumber)
                 }
                 Call.State.OutgoingInit -> {
@@ -78,6 +91,8 @@ internal class SipManager private constructor(context: Context) {
                     Log.d(TAG, "Connected")
                 }
                 Call.State.StreamsRunning -> {
+                    stopVibration(context)
+                    unregisterRingerModeReceiver(context)
                     // This state indicates the call is active.
                     // You may reach this state multiple times, for example after a pause/resume
                     // or after the ICE negotiation completes
@@ -110,6 +125,8 @@ internal class SipManager private constructor(context: Context) {
                     Log.d(TAG, "UpdatedByRemote")
                 }
                 Call.State.Released -> {
+                    stopVibration(context)
+                    unregisterRingerModeReceiver(context)
                     if(isMissed(call.callLog)) {
                         Log.d(TAG,"Missed")
                         val callee = call.remoteAddress.username ?: ""
@@ -122,12 +139,16 @@ internal class SipManager private constructor(context: Context) {
                     }
                 }
                 Call.State.End -> {
+                    stopVibration(context)
+                    unregisterRingerModeReceiver(context)
                     Log.d(TAG, "End")
                     val duration = if(timeStartStreamingRunning == 0L) 0 else System.currentTimeMillis() - timeStartStreamingRunning
                     sendEvent(EventHangup, "duration" to duration)
                     timeStartStreamingRunning = 0
                 }
                 Call.State.Error -> {
+                    stopVibration(context)
+                    unregisterRingerModeReceiver(context)
                     Log.d(TAG, "Error")
                     sendEvent(EventError, "message" to message)
                 }
@@ -153,6 +174,8 @@ internal class SipManager private constructor(context: Context) {
             mCore.isKeepAliveEnabled = sipConfiguration.isKeepAlive
             mCore.maxCalls = 1
             mCore.start()
+            mCore.isVibrationOnIncomingCallEnabled = true
+            mCore.ringDuringIncomingEarlyMedia = false
             mCore.removeListener(coreListener)
             mCore.addListener(coreListener)
             isInitial = true
@@ -385,21 +408,21 @@ internal class SipManager private constructor(context: Context) {
     fun selectDefaultAudioInput(){
         val coreCall = mCore.currentCall ?: return
 
-        val currentAudioInputDevice = coreCall.inputAudioDevice
-
-        val isBluetooth = currentAudioInputDevice?.type == AudioDevice.Type.Bluetooth
-        if(isBluetooth){
-            return
-        }
-
-        val bluetoothAudioDeviceMic = mCore.audioDevices.firstOrNull {
-            (it.type == AudioDevice.Type.Bluetooth) &&
-                    it.hasCapability(AudioDevice.Capabilities.CapabilityRecord)
-        }
-        if (bluetoothAudioDeviceMic != null){
-            coreCall.inputAudioDevice = bluetoothAudioDeviceMic
-            return
-        }
+//        val currentAudioInputDevice = coreCall.inputAudioDevice
+//
+//        val isBluetooth = currentAudioInputDevice?.type == AudioDevice.Type.Bluetooth
+//        if(isBluetooth){
+//            return
+//        }
+//
+//        val bluetoothAudioDeviceMic = mCore.audioDevices.firstOrNull {
+//            (it.type == AudioDevice.Type.Bluetooth) &&
+//                    it.hasCapability(AudioDevice.Capabilities.CapabilityRecord)
+//        }
+//        if (bluetoothAudioDeviceMic != null){
+//            coreCall.inputAudioDevice = bluetoothAudioDeviceMic
+//            return
+//        }
     }
 
     fun selectDefaultAudioOutput(){
@@ -408,19 +431,19 @@ internal class SipManager private constructor(context: Context) {
 //            Log.v("DKM ==>>", "audioDevice " + audioDevice?.type)
 //        }
 
-        val currentAudioDevice = coreCall.outputAudioDevice
-        val speakerEnabled = currentAudioDevice?.type == AudioDevice.Type.Speaker
-        if(speakerEnabled){
-            return
-        }
-        val bluetoothAudioDevicePlay = mCore.audioDevices.firstOrNull {
-            (it.type == AudioDevice.Type.Bluetooth) &&
-                    it.hasCapability(AudioDevice.Capabilities.CapabilityPlay)
-        }
-        if (bluetoothAudioDevicePlay != null){
-            coreCall.outputAudioDevice = bluetoothAudioDevicePlay
-            return
-        }
+//        val currentAudioDevice = coreCall.outputAudioDevice
+//        val speakerEnabled = currentAudioDevice?.type == AudioDevice.Type.Speaker
+//        if(speakerEnabled){
+//            return
+//        }
+//        val bluetoothAudioDevicePlay = mCore.audioDevices.firstOrNull {
+//            (it.type == AudioDevice.Type.Bluetooth) &&
+//                    it.hasCapability(AudioDevice.Capabilities.CapabilityPlay)
+//        }
+//        if (bluetoothAudioDevicePlay != null){
+//            coreCall.outputAudioDevice = bluetoothAudioDevicePlay
+//            return
+//        }
     }
 
     fun toggleSpeaker(result: Result) {
@@ -550,6 +573,84 @@ internal class SipManager private constructor(context: Context) {
 
     private fun createParams(event: String, vararg params: Pair<String, Any>): Map<String, Any> {
         return mapOf("event" to event, "body" to params.toMap())
+    }
+
+
+    private var isRingerReceiverRegistered = false
+    private var ringerModeReceiver: RingerModeReceiver? = null
+    @RequiresPermission(Manifest.permission.VIBRATE)
+    private fun startVibrate(context: Context) {
+        val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        val ringerMode = audioManager.ringerMode
+        Log.e("DKM", "startVibrate - ringerMode: $ringerMode")
+        if (ringerMode == AudioManager.RINGER_MODE_SILENT) {
+            return
+        }
+        val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val vibratorManager =
+                context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
+            vibratorManager.defaultVibrator
+        } else {
+            context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+        }
+        val vibrationEffect = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            VibrationEffect.createWaveform(
+                longArrayOf(0, 1000, 1000),  // pattern
+                0 // repeat indefinitely
+            )
+        } else {
+            null
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            vibrator.vibrate(vibrationEffect)
+        } else {
+            vibrator.vibrate(longArrayOf(0, 1000, 1000), 0)
+        }
+        registerRingerModeReceiver(context)
+    }
+    @SuppressLint("MissingPermission")
+    private fun stopVibration(context: Context) {
+        val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val vibratorManager =
+                context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
+            vibratorManager.defaultVibrator
+        } else {
+            context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+        }
+        vibrator.cancel()
+    }
+    @SuppressLint("MissingPermission")
+    private fun registerRingerModeReceiver(context: Context) {
+        if (isRingerReceiverRegistered) return
+        val filter = IntentFilter(AudioManager.RINGER_MODE_CHANGED_ACTION)
+        ringerModeReceiver = RingerModeReceiver { newMode ->
+            Log.e("DKM", "registerRingerModeReceiver: $newMode")
+            when (newMode) {
+                AudioManager.RINGER_MODE_NORMAL,
+                AudioManager.RINGER_MODE_VIBRATE -> startVibrate(context)
+                AudioManager.RINGER_MODE_SILENT -> stopVibration(context)
+            }
+        }
+        context.registerReceiver(ringerModeReceiver, filter)
+        isRingerReceiverRegistered = true
+    }
+    private fun unregisterRingerModeReceiver(context: Context) {
+        if (!isRingerReceiverRegistered) return
+        try {
+            context.unregisterReceiver(ringerModeReceiver)
+        } catch (_: IllegalArgumentException) {
+        }
+        ringerModeReceiver = null
+        isRingerReceiverRegistered = false
+    }
+    class RingerModeReceiver(private val onRingerModeChanged: (Int) -> Unit) : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if (intent.action == AudioManager.RINGER_MODE_CHANGED_ACTION) {
+                val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+                val newMode = audioManager.ringerMode
+                onRingerModeChanged(newMode)
+            }
+        }
     }
 
     companion object {
