@@ -174,8 +174,7 @@ internal class SipManager private constructor(context: Context) {
             mCore.isKeepAliveEnabled = sipConfiguration.isKeepAlive
             mCore.maxCalls = 1
             mCore.start()
-            mCore.isVibrationOnIncomingCallEnabled = true
-            mCore.ringDuringIncomingEarlyMedia = false
+            mCore.isVibrationOnIncomingCallEnabled = false
             mCore.removeListener(coreListener)
             mCore.addListener(coreListener)
             isInitial = true
