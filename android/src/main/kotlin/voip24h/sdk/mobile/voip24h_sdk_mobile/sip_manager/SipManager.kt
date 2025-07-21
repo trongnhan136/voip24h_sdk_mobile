@@ -580,6 +580,7 @@ internal class SipManager private constructor(context: Context) {
     @RequiresPermission(Manifest.permission.VIBRATE)
     private fun startVibrate(context: Context) {
         val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        registerRingerModeReceiver(context)
         val ringerMode = audioManager.ringerMode
         Log.e("DKM", "startVibrate - ringerMode: $ringerMode")
         if (ringerMode == AudioManager.RINGER_MODE_SILENT) {
@@ -605,7 +606,6 @@ internal class SipManager private constructor(context: Context) {
         } else {
             vibrator.vibrate(longArrayOf(0, 1000, 1000), 0)
         }
-        registerRingerModeReceiver(context)
     }
     @SuppressLint("MissingPermission")
     private fun stopVibration(context: Context) {
