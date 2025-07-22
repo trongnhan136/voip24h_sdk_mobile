@@ -9,12 +9,30 @@ import voip24h.sdk.mobile.voip24h_sdk_mobile.model.SipConfiguration
 import io.flutter.plugin.common.MethodChannel.Result
 import voip24h.sdk.mobile.voip24h_sdk_mobile.utils.*
 
+
+interface IOnCallEvent{
+    fun onRinging(extension:String, phone:String)
+}
+
 class SipManager private constructor(context: Context) {
 
     private var isInitial = false
     private var timeStartStreamingRunning: Long = 0
     private var isPause = false
     private var mCore: Core
+
+    private var _onCallEvent: IOnCallEvent? = null
+
+    public val core: Core
+        get() = mCore
+
+    var onCallEvent: IOnCallEvent?
+        get() = _onCallEvent
+        set(value) {
+            _onCallEvent = value
+        }
+
+
     private val coreListener = object : CoreListenerStub() {
 
         override fun onAccountRegistrationStateChanged(
