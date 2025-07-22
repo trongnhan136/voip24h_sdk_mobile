@@ -9,7 +9,7 @@ import voip24h.sdk.mobile.voip24h_sdk_mobile.model.SipConfiguration
 import io.flutter.plugin.common.MethodChannel.Result
 import voip24h.sdk.mobile.voip24h_sdk_mobile.utils.*
 
-internal class SipManager private constructor(context: Context) {
+class SipManager private constructor(context: Context) {
 
     private var isInitial = false
     private var timeStartStreamingRunning: Long = 0
