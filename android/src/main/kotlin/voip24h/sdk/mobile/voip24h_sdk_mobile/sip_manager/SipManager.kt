@@ -250,6 +250,23 @@ class SipManager private constructor(context: Context) {
         }
     }
 
+    fun answerImpl():Boolean {
+        Log.d(TAG, "Try to accept call")
+        try {
+            val currentCall = mCore.currentCall
+            if(currentCall == null) {
+                Log.d(TAG, "Current call not found")
+                return false
+            }
+            currentCall.accept()
+            Log.d(TAG, "Answer successful")
+            // result.success("Answer successful")
+            return true
+        } catch (e: Exception) {
+        }
+        return false
+    }
+
     fun reject(result: Result) {
         Log.d(TAG, "Try to accept call")
         try {
@@ -266,6 +283,22 @@ class SipManager private constructor(context: Context) {
             // Log.d(TAG, e.message.toString())
             result.error("500", e.message.toString(), null)
         }
+    }
+
+    fun rejectImpl(): Boolean {
+        Log.d(TAG, "Try to reject call")
+        try {
+            val currentCall = mCore.currentCall
+            if(currentCall == null) {
+                Log.d(TAG, "Current call not found")
+                return false
+            }
+            currentCall.terminate()
+            Log.d(TAG, "Reject successful")
+            return true
+        } catch (e: Exception) {
+        }
+        return  false
     }
 
     fun call(recipient: String, result: Result) {
@@ -305,6 +338,43 @@ class SipManager private constructor(context: Context) {
         }
     }
 
+    fun callImpl(recipient: String): Boolean {
+        Log.d(TAG, "Try to call")
+        // As for everything we need to get the SIP URI of the remote and convert it to an Address
+        val domain = mCore.defaultAccount?.params?.domain
+        if (domain == null) {
+            Log.d(TAG, "Can't create sip uri")
+            // result.error("404", "Can't create sip uri", null)
+            return false
+        }
+        val remoteAddress = Factory.instance().createAddress("sip:$recipient@$domain")
+        if (remoteAddress == null) {
+            Log.d(TAG, "Invalid SIP URI")
+            // result.error("404", "Invalid SIP URI", null)
+            return false
+        } else {
+            // We also need a CallParams object
+            // Create call params expects a Call object for incoming calls, but for outgoing we must use null safely
+            val params = mCore.createCallParams(null)
+            if(params == null) {
+                Log.d(TAG, "Something went wrong")
+                return false
+            }
+
+            // We can now configure it
+            // Here we ask for no encryption but we could ask for ZRTP/SRTP/DTLS
+            params.mediaEncryption = MediaEncryption.None
+            // If we wanted to start the call with video directly
+            //params.enableVideo(true)
+
+            // Finally we start the call
+            mCore.inviteAddressWithParams(remoteAddress, params)
+            // result.success("Call successful")
+            Log.d(TAG, "Call successful")
+            return true
+        }
+    }
+
     fun hangup(result: Result) {
         Log.d(TAG, "Trying to hang up")
         try {
@@ -325,6 +395,28 @@ class SipManager private constructor(context: Context) {
             Log.d(TAG, e.message.toString())
             result.error("500", e.message.toString(), null)
         }
+    }
+
+    fun hangupImpl():Boolean {
+        Log.d(TAG, "Trying to hang up")
+        try {
+            if (mCore.callsNb == 0) {
+                Log.d(TAG, "Current call not found")
+                return false
+            }
+            val coreCall = mCore.currentCall ?: mCore.calls.firstOrNull()
+            if(coreCall == null) {
+                Log.d(TAG, "Current call not found")
+                return false
+            }
+            coreCall.terminate()
+            Log.d(TAG, "Hangup successful")
+            return true
+            // result.success("Hangup successful")
+        } catch (e: Exception) {
+            Log.d(TAG, e.message.toString())
+        }
+        return false
     }
 
     fun pause(result: Result) {
@@ -349,6 +441,29 @@ class SipManager private constructor(context: Context) {
         }
     }
 
+    fun pauseImpl():Boolean {
+        Log.d(TAG, "Try to pause")
+        try {
+            if(mCore.callsNb == 0) {
+                Log.d(TAG, "Current call not found")
+                return false
+            }
+            val coreCall = mCore.currentCall ?: mCore.calls.firstOrNull()
+            if(coreCall == null) {
+                Log.d(TAG, "Current call not found")
+                return false
+            }
+            coreCall.pause()
+            Log.d(TAG, "Pause successful")
+            return true
+            // result.success("Pause successful")
+        } catch (e: Exception) {
+            Log.d(TAG, e.message.toString())
+
+        }
+        return false
+    }
+
     fun resume(result: Result) {
         Log.d(TAG, "Try to resume")
         try {
@@ -369,6 +484,28 @@ class SipManager private constructor(context: Context) {
             Log.d(TAG, e.message.toString())
             result.error("500", e.message.toString(), null)
         }
+    }
+
+    fun resumeImpl():Boolean {
+        Log.d(TAG, "Try to resume")
+        try {
+            if(mCore.callsNb == 0)  {
+                Log.d(TAG, "Current call not found")
+                return false
+            }
+            val coreCall = mCore.currentCall ?: mCore.calls.firstOrNull()
+            if(coreCall == null) {
+                Log.d(TAG, "Current call not found")
+                return false
+            }
+            coreCall.resume()
+            Log.d(TAG, "Resume successful")
+            return true
+            // result.success("Resume successful")
+        } catch (e: Exception) {
+            Log.d(TAG, e.message.toString())
+        }
+        return false
     }
 
     fun transfer(recipient: String, result: Result) {
@@ -399,6 +536,37 @@ class SipManager private constructor(context: Context) {
             Log.d(TAG, e.message.toString())
             result.error("500", e.message.toString(), null)
         }
+    }
+
+    fun transferImpl(recipient: String):Boolean {
+        Log.d(TAG, "Try to transfer")
+        try {
+            if(mCore.callsNb == 0)  {
+                Log.d(TAG, "Current call not found")
+                return false
+            }
+            val domain = mCore.defaultAccount?.params?.domain
+            // Log.d(TAG, "Domain: $domain")
+            if (domain == null) {
+                Log.d(TAG, "Can't create sip uri")
+                // result.error("404", "Can't create sip uri", null)
+                return false
+            }
+            val address = mCore.interpretUrl("sip:$recipient@$domain") ?: return false
+            val coreCall = mCore.currentCall ?: mCore.calls.firstOrNull()
+            if(coreCall == null) {
+                Log.d(TAG, "Current call not found")
+                return false
+            }
+            coreCall.transferTo(address)
+            Log.d(TAG, "Transfer successful")
+            return true
+            // result.success("Transfer successful")
+        } catch (e: Exception) {
+            Log.d(TAG, e.message.toString())
+
+        }
+        return false
     }
 
     fun sendDTMF(dtmf: String, result: Result) {
@@ -480,12 +648,42 @@ class SipManager private constructor(context: Context) {
         }
     }
 
+    fun toggleSpeakerImpl():Boolean {
+        val coreCall = mCore.currentCall ?: return false
+        val currentAudioDevice = coreCall.outputAudioDevice
+        val speakerEnabled = currentAudioDevice?.type == AudioDevice.Type.Speaker
+
+        val hasBluetooth = mCore.audioDevices.any { (it.type == AudioDevice.Type.Bluetooth) && it.hasCapability(AudioDevice.Capabilities.CapabilityPlay) }
+
+        for (audioDevice in mCore.audioDevices) {
+            if (speakerEnabled && hasBluetooth && (audioDevice.type == AudioDevice.Type.Bluetooth) && audioDevice.hasCapability(AudioDevice.Capabilities.CapabilityPlay)) {
+                coreCall.outputAudioDevice = audioDevice
+                return false
+            }else if (speakerEnabled && !hasBluetooth && audioDevice.type == AudioDevice.Type.Earpiece) {
+                coreCall.outputAudioDevice = audioDevice
+                return false
+            } else if (!speakerEnabled && audioDevice.type == AudioDevice.Type.Speaker) {
+                coreCall.outputAudioDevice = audioDevice
+                return true
+            }
+        }
+        return false
+    }
+
     fun toggleMic(result: Result) {
         if(mCore.currentCall == null) {
             return result.error("404", "Current call not found", null)
         }
         mCore.isMicEnabled = !mCore.isMicEnabled
         result.success(mCore.isMicEnabled)
+    }
+
+    fun toggleMicImpl() :Boolean{
+        if(mCore.currentCall == null) {
+            return false
+        }
+        mCore.isMicEnabled = !mCore.isMicEnabled
+        return mCore.isMicEnabled
     }
 
     fun refreshSipAccount(result: Result) {
@@ -562,6 +760,13 @@ class SipManager private constructor(context: Context) {
         val speakerEnabled = currentAudioDevice?.type == AudioDevice.Type.Speaker
         result.success(speakerEnabled)
     }
+
+    fun isSpeakerEnabledImpl():Boolean {
+        val currentAudioDevice = mCore.currentCall?.outputAudioDevice
+        val speakerEnabled = currentAudioDevice?.type == AudioDevice.Type.Speaker
+        return speakerEnabled
+    }
+
 
     // fun removeListener() {
     // mCore.removeListener(coreListener)
