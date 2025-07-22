@@ -11,7 +11,13 @@ import voip24h.sdk.mobile.voip24h_sdk_mobile.utils.*
 
 
 interface IOnCallEvent{
-    fun onRinging(extension:String, phone:String)
+    fun onAccountRegistrationStateChanged(state:String, message:String)
+    fun onIncoming(from: String, to:String)
+    fun onMakeCalling(from: String, to:String)
+    fun onInCall(timeStartStreamingRunning: Long)
+    fun onMissedCall(phoneNumber: String, totalMissed: String)
+    fun onCallEnded(duration: Long)
+    fun onCallError(message: String)
 }
 
 class SipManager private constructor(context: Context) {
@@ -41,6 +47,7 @@ class SipManager private constructor(context: Context) {
             state: RegistrationState?,
             message: String
         ) {
+            _onCallEvent?.onAccountRegistrationStateChanged(state?.name ?: "" , message)
             sendEvent(EventAccountRegistrationStateChanged, "registrationState" to (state?.name ?: ""), "message" to message)
         }
 
@@ -73,6 +80,7 @@ class SipManager private constructor(context: Context) {
                     val phoneNumber = call.remoteAddress.username ?: ""
                     selectDefaultAudioInput()
                     selectDefaultAudioOutput()
+                    _onCallEvent?.onIncoming(phoneNumber, extension)
                     sendEvent(EventRing, "extension" to extension, "phoneNumber" to phoneNumber, "callType" to CallType.inbound.value)
                     Voip24hSdkMobilePlugin.iRinging?.onRinging(extension,phoneNumber)
                 }
@@ -87,6 +95,7 @@ class SipManager private constructor(context: Context) {
                     val phoneNumber = call.remoteAddress.username ?: ""
                     selectDefaultAudioInput()
                     selectDefaultAudioOutput()
+                    _onCallEvent?.onMakeCalling(extension, phoneNumber)
                     sendEvent(EventRing, "extension" to extension, "phoneNumber" to phoneNumber, "callType" to CallType.outbound.value)
                 }
                 Call.State.OutgoingRinging -> {
@@ -107,6 +116,7 @@ class SipManager private constructor(context: Context) {
                     }
                     isPause = false
                     val callId = call.callLog.callId ?: ""
+                    _onCallEvent?.onInCall(timeStartStreamingRunning)
                     sendEvent(EventUp, "callId" to callId)
                 }
                 Call.State.Paused -> {
@@ -133,6 +143,7 @@ class SipManager private constructor(context: Context) {
                         Log.d(TAG,"Missed")
                         val callee = call.remoteAddress.username ?: ""
                         val totalMissed = core.missedCallsCount.toString()
+                        _onCallEvent?.onMissedCall(callee, totalMissed)
                         sendEvent(EventMissed, "phoneNumber" to callee, "totalMissed" to totalMissed)
                     } else {
                         Log.d(TAG, "Released")
@@ -143,11 +154,14 @@ class SipManager private constructor(context: Context) {
                 Call.State.End -> {
                     Log.d(TAG, "End")
                     val duration = if(timeStartStreamingRunning == 0L) 0 else System.currentTimeMillis() - timeStartStreamingRunning
+
+                    _onCallEvent?.onCallEnded(duration)
                     sendEvent(EventHangup, "duration" to duration)
                     timeStartStreamingRunning = 0
                 }
                 Call.State.Error -> {
                     Log.d(TAG, "Error")
+                    _onCallEvent?.onCallError(message)
                     sendEvent(EventError, "message" to message)
                 }
                 else -> {
