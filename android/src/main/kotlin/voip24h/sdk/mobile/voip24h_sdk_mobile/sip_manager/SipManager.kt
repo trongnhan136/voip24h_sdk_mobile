@@ -755,6 +755,10 @@ class SipManager private constructor(context: Context) {
         result.success(mCore.isMicEnabled)
     }
 
+    fun isMicEnabledImpl(): Boolean {
+        return mCore.isMicEnabled
+    }
+
     fun isSpeakerEnabled(result: Result) {
         val currentAudioDevice = mCore.currentCall?.outputAudioDevice
         val speakerEnabled = currentAudioDevice?.type == AudioDevice.Type.Speaker
